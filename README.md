@@ -21,3 +21,4 @@ To-do:
 Done:
 Basic framework for STT -> LLM is completed.
 
+Finally found a way to use POE models (GPT-4o, Cluade-3.5-Haiku...), the smoothness in convo is much better than Hugging face pipielines, can also do role-plays, could be a temp solution before fine-tuning my own model.
