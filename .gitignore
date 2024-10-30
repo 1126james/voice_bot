@@ -26,7 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 chat_history/
-conversation_id.txt
+ids.json
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -164,3 +164,4 @@ cython_debug/
 share/
 Scripts/
 Lib/
+put_into_GPT-SoVITS/rem-e50.7z

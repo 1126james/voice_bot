@@ -1,11 +1,13 @@
 # main.py
 from stt.stt import speak, get_supported_languages
 from llm.get_response import llm
+from tts.play_tts import play_tts
 import uuid
 import os
 import json
 
 CHAT_HISTORY_FOLDER = "chat_history"
+IDs_FILE = "ids.json"
 
 def load_or_create_conversation_history(conversation_id):
     history_file = os.path.join(CHAT_HISTORY_FOLDER, f"{conversation_id}_history.json")
@@ -26,40 +28,51 @@ def save_conversation_history(conversation_id, conversation_history):
     with open(history_file, "w") as file:
         json.dump(conversation_history, file)
 
-def save_conversation_id(conversation_id):
-    with open("conversation_id.txt", "w") as file:
-        file.write(conversation_id)
+def trim_conversation_history(conversation_history, max_messages=10):
+    """Keep only the last max_messages messages in the conversation history"""
+    if len(conversation_history) > max_messages:
+        return conversation_history[-max_messages:]
+    return conversation_history
 
-def load_conversation_id():
-    if os.path.exists("conversation_id.txt"):
-        with open("conversation_id.txt", "r") as file:
-            return file.read().strip()
-    else:
-        return None
+def save_ids(conversation_id, user_id):
+    data = {
+        "conversation_id": conversation_id,
+        "user_id": user_id
+    }
+    with open(IDs_FILE, "w") as file:
+        json.dump(data, file)
 
-def get_conversation_id():
-    previous_conversation_id = load_conversation_id()
-    if previous_conversation_id:
+def load_ids():
+    if os.path.exists(IDs_FILE):
+        with open(IDs_FILE, "r") as file:
+            data = json.load(file)
+            return data.get("conversation_id"), data.get("user_id")
+    return None, None
+
+def get_ids():
+    previous_conversation_id, previous_user_id = load_ids()
+    if previous_conversation_id and previous_user_id:
         while True:
-            choice = input(f"Found a previous conversation (ID: {previous_conversation_id}). Do you want to continue or start a new one? (C/N): ")
+            choice = input(f"Found previous session (User ID: {previous_user_id}, Conversation ID: {previous_conversation_id}). Do you want to continue or start a new one? (C/N): ")
             if choice.upper() == "C":
-                return previous_conversation_id
+                return previous_conversation_id, previous_user_id
             elif choice.upper() == "N":
                 delete_conversation_history(previous_conversation_id)
                 new_conversation_id = f"c-{uuid.uuid4().hex}"
-                save_conversation_id(new_conversation_id)
-                return new_conversation_id
+                new_user_id = f"u-{uuid.uuid4().hex}"
+                save_ids(new_conversation_id, new_user_id)
+                return new_conversation_id, new_user_id
             else:
                 print("Invalid choice. Please enter 'C' to continue or 'N' to start a new session.")
     else:
         new_conversation_id = f"c-{uuid.uuid4().hex}"
-        save_conversation_id(new_conversation_id)
-        return new_conversation_id
+        new_user_id = f"u-{uuid.uuid4().hex}"
+        save_ids(new_conversation_id, new_user_id)
+        return new_conversation_id, new_user_id
 
 def main(language):
     break_keywords = ['quit', 'bye', 'goodbye', 'close', 'exit']
-    user_id = f"u-{uuid.uuid4().hex}"
-    conversation_id = get_conversation_id()
+    conversation_id, user_id = get_ids()
 
     if not os.path.exists(CHAT_HISTORY_FOLDER):
         os.makedirs(CHAT_HISTORY_FOLDER)
@@ -75,9 +88,11 @@ def main(language):
 
         response = llm(text, user_id, conversation_id, conversation_history)
         print(f"Response: {response}")
+        play_tts(text=response)
 
         conversation_history.append({"role": "user", "content": text})
         conversation_history.append({"role": "bot", "content": response})
+        conversation_history = trim_conversation_history(conversation_history)
         save_conversation_history(conversation_id, conversation_history)
 
 if __name__ == "__main__":
